@@ -122,7 +122,7 @@
         const { data: existente } = await client.from('turnos').select('hora').eq('dni', dni).eq('fecha', fechaActual).maybeSingle();
         
         if (existente) {
-            alert(`Usted ya tiene un turno este día a las ${existente.hora.substring(0,5)}.`);
+            alert(`Usted ya tiene un turno este día a las ${existente.hora.substring(0,5)}. Comuniquese al 2645046140`);
             btn.disabled = false;
             btn.innerText = "Confirmar Turno";
             return;
@@ -144,4 +144,5 @@
     }
 </script>
 </body>
+
 </html>
