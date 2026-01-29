@@ -38,9 +38,9 @@
         <button class="btn-excel" onclick="exportarExcel()">📥 Descargar Excel</button>
     </div>
     <div class="filtros">
-        <div><label>Fecha</label><input type="date" id="fechaFiltro" onchange="consultar()"></div>
-        <div><label>Hora</label><select id="horaFiltro" onchange="consultar()"><option value="">Todas</option></select></div>
-        <div><label>DNI</label><input type="number" id="buscarDNI" oninput="consultar()" placeholder="Buscar..."></div>
+        <div><label>Fecha:</label><input type="date" id="fechaFiltro" onchange="consultar()"></div>
+        <div><label>Hora:</label><select id="horaFiltro" onchange="consultar()"><option value="">Todas</option></select></div>
+        <div><label>DNI:</label><input type="number" id="buscarDNI" oninput="consultar()" placeholder="Buscar..."></div>
         <button onclick="consultar()" style="padding: 10px 25px; border-radius: 25px; cursor:pointer; background:#3498db; color:white; border:none; font-weight: 700;">Actualizar</button>
     </div>
     <table id="tablaTurnos">
@@ -157,5 +157,6 @@
 </body>
 
 </html>
+
 
 
