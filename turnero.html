@@ -11,16 +11,35 @@
         .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
         h2 { text-align: center; color: #2c3e50; font-weight: 700; margin-bottom: 25px; }
         label { display: block; margin-bottom: 10px; margin-left: 5px; font-weight: 500; color: #444; }
+        
         .grid-turnos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 20px; }
-        .turno-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; border: none; border-radius: 20px; cursor: pointer; background: #2ecc71; color: white; transition: 0.3s; font-family: 'Ubuntu', sans-serif; }
+        
+        .turno-btn { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            padding: 10px; border: 2px solid transparent; border-radius: 20px; cursor: pointer; 
+            background: #2ecc71; color: white; transition: 0.3s; font-family: 'Ubuntu', sans-serif; 
+        }
         .turno-btn span.hora { font-size: 16px; font-weight: 700; }
         .turno-btn span.cupos { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+        
+        /* Efectos de los botones */
         .turno-btn:hover:not(:disabled) { background: #27ae60; transform: scale(1.05); }
         .turno-btn:disabled { background: #bdc3c7; cursor: not-allowed; color: #fdfdfd; }
+        
+        /* Clase para el botón seleccionado */
+        .turno-btn.seleccionado { 
+            background: #3498db !important; 
+            border-color: #2980b9; 
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+
         .formulario { display: none; margin-top: 30px; border-top: 2px solid #f0f0f0; padding-top: 25px; animation: fadeIn 0.4s ease; }
         input { width: 100%; padding: 12px 20px; margin: 8px 0 18px 0; border: 1px solid #ddd; border-radius: 30px; box-sizing: border-box; font-size: 16px; font-family: 'Ubuntu', sans-serif; }
+        
         .captcha-box { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px dashed #3498db; text-align: center; }
         .btn-confirmar { background: #3498db; color: white; border: none; padding: 16px; border-radius: 30px; cursor: pointer; width: 100%; font-size: 18px; font-weight: 700; margin-top: 10px; font-family: 'Ubuntu', sans-serif; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -51,7 +70,7 @@
         <div class="captcha-box">
             <p style="margin: 0 0 10px 0; font-weight: bold;">Verificación de Seguridad</p>
             <span id="preguntaCaptcha"></span>
-            <input type="number" id="respuestaCaptcha" placeholder="Resultado" style="width: 100px; margin: 0; display: inline-block;">
+            <input type="number" id="respuestaCaptcha" placeholder="?" style="width: 80px; margin: 0; display: inline-block;">
         </div>
 
         <button id="btnFinal" class="btn-confirmar" onclick="confirmarTurno()">Confirmar Turno</button>
@@ -64,7 +83,7 @@
     let fechaActual = "", horaActual = "";
     let resultadoCorrectoCaptcha = 0;
 
-    // BLOQUEAR FECHAS PASADAS AL CARGAR
+    // Bloquear fechas pasadas
     const hoy = new Date().toISOString().split('T')[0];
     document.getElementById('fechaSeleccionada').setAttribute('min', hoy);
 
@@ -87,6 +106,9 @@
         fechaActual = document.getElementById('fechaSeleccionada').value;
         if (!fechaActual) return;
         
+        // Ocultar formulario al cambiar fecha para evitar confusiones
+        document.getElementById('seccionRegistro').style.display = 'none';
+        
         const { data: ocupados } = await client.from('turnos').select('hora').eq('fecha', fechaActual);
         const conteo = {}; 
         ocupados?.forEach(t => { const h = t.hora.substring(0, 5); conteo[h] = (conteo[h] || 0) + 1; });
@@ -99,18 +121,27 @@
             const usados = conteo[hora] || 0;
             const disponibles = 6 - usados;
             btn.className = 'turno-btn';
-            btn.innerHTML = `<span class="hora">${hora} hs</span>`;
+            btn.innerHTML = `<span class="hora">${hora} hs</span><span class="cupos">${disponibles <= 0 ? 'Agotado' : disponibles + ' libres'}</span>`;
             
             if (disponibles <= 0) {
                 btn.disabled = true;
-                btn.innerHTML += `<span class="cupos">Agotado</span>`;
             } else {
-                btn.innerHTML += `<span class="cupos">${disponibles} libres</span>`;
                 btn.onclick = () => { 
+                    // Quitar clase "seleccionado" de otros botones
+                    document.querySelectorAll('.turno-btn').forEach(b => b.classList.remove('seleccionado'));
+                    // Marcar este botón como seleccionado
+                    btn.classList.add('seleccionado');
+                    
                     horaActual = hora; 
-                    document.getElementById('seccionRegistro').style.display = 'block'; 
-                    document.getElementById('infoTurnoSeleccionado').innerText = `Turno: ${hora} hs`;
-                    generarCaptcha(); // Generar captcha nuevo al elegir horario
+                    const seccion = document.getElementById('seccionRegistro');
+                    seccion.style.display = 'block'; 
+                    document.getElementById('infoTurnoSeleccionado').innerText = `Turno Seleccionado: ${hora} hs`;
+                    generarCaptcha(); 
+
+                    // Scroll suave al formulario
+                    setTimeout(() => {
+                        seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 150);
                 };
             }
             contenedor.appendChild(btn);
@@ -123,18 +154,15 @@
         const nombre = document.getElementById('nombre').value;
         const captchaUser = document.getElementById('respuestaCaptcha').value;
 
-        // 1. LIMPIEZA DE DNI (quitar puntos y espacios)
         const dniLimpio = dniRaw.replace(/\D/g, ""); 
 
-        // 2. VALIDACIÓN DE CAMPOS Y DNI
         if (dniLimpio.length < 7 || dniLimpio.length > 8) {
-            return alert("El DNI debe tener 7 u 8 números (sin puntos ni espacios).");
+            return alert("El DNI debe tener 7 u 8 números.");
         }
         if (nombre.length < 3) return alert("Por favor, ingrese su nombre completo.");
         
-        // 3. VALIDACIÓN CAPTCHA
         if (parseInt(captchaUser) !== resultadoCorrectoCaptcha) {
-            alert("El resultado de la suma es incorrecto. Intente de nuevo.");
+            alert("Captcha incorrecto.");
             generarCaptcha();
             return;
         }
@@ -142,7 +170,6 @@
         btn.disabled = true;
         btn.innerText = "Procesando...";
 
-        // 4. VERIFICAR DUPLICADO
         const { data: existente } = await client.from('turnos').select('hora').eq('dni', dniLimpio).eq('fecha', fechaActual).maybeSingle();
         if (existente) {
             alert(`Usted ya tiene un turno este día a las ${existente.hora.substring(0,5)}. Comuníquese al 2645046140.`);
@@ -150,20 +177,14 @@
             return;
         }
 
-        // 5. GUARDAR
         const { error } = await client.from('turnos').insert([{ 
-            dni: dniLimpio, 
-            nombre_apellido: nombre, 
-            celular: document.getElementById('celular').value, 
-            email: document.getElementById('email').value, 
-            fecha: fechaActual, 
-            hora: horaActual 
+            dni: dniLimpio, nombre_apellido: nombre, celular: document.getElementById('celular').value, 
+            email: document.getElementById('email').value, fecha: fechaActual, hora: horaActual 
         }]);
 
         if (error) { 
-            alert("Error al guardar: " + error.message); 
+            alert("Error: " + error.message); 
             btn.disabled = false; 
-            btn.innerText = "Confirmar Turno";
         } else { 
             alert("¡Turno reservado con éxito!"); 
             location.reload(); 
