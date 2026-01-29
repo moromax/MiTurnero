@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,22 +10,16 @@
         body { font-family: 'Ubuntu', sans-serif; background: #2c3e50; padding: 20px; color: #333; }
         .container { max-width: 1300px; margin: auto; background: white; padding: 30px; border-radius: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; }
-        
         .filtros { display: flex; gap: 25px; background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; align-items: center; flex-wrap: wrap; }
-        
         .filtros div { display: flex; align-items: center; gap: 12px; }
         .filtros label { font-weight: 700; color: #2c3e50; }
-
         input, select { padding: 10px 18px; border-radius: 25px; border: 1px solid #ccc; font-family: 'Ubuntu', sans-serif; outline: none; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #34495e; color: white; padding: 15px 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        
         .btn-edit { background: #f39c12; color: white; border: none; padding: 8px 18px; border-radius: 25px; cursor: pointer; transition: 0.2s; }
         .btn-del { background: #e74c3c; color: white; border: none; padding: 8px 18px; border-radius: 25px; cursor: pointer; transition: 0.2s; }
         .btn-excel { background: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 30px; cursor: pointer; font-weight: 700; transition: 0.2s; }
-        
         .btn-edit:hover, .btn-del:hover, .btn-excel:hover { opacity: 0.85; transform: translateY(-1px); }
         b.hora-texto { color: #2c3e50; }
         b.fecha-texto { color: #3498db; }
@@ -62,6 +56,18 @@
 </div>
 
 <script>
+    // --- SEGURIDAD DE ACCESO ---
+    const claveCorrecta = "2645"; 
+    if (sessionStorage.getItem('acceso') !== 'true') {
+        const pass = prompt("Ingrese la clave de gestión:");
+        if (pass === claveCorrecta) {
+            sessionStorage.setItem('acceso', 'true');
+        } else {
+            alert("Acceso denegado");
+            window.location.href = "index.html";
+        }
+    }
+
     const client = supabase.createClient('https://htuqdurgktbilrxjpytd.supabase.co', 'sb_publishable_Yk7RwtF_FzfDyrGcfohIUA_Aa6y_NU3');
 
     const sel = document.getElementById('horaFiltro');
@@ -119,31 +125,19 @@
     }
 
     async function editarTurno(id, fechaActual, horaActual, nombre) {
-        // 1. Pedir nueva fecha
-        const nuevaFecha = prompt(`Editar FECHA para ${nombre} (AAAA-MM-DD):`, fechaActual);
-        
-        // 2. Pedir nueva hora
-        const nuevaHora = prompt(`Editar HORA para ${nombre} (HH:MM):`, horaActual.substring(0,5));
+        const nuevaFecha = prompt(`Editar FECHA para ${nombre}:`, fechaActual);
+        const nuevaHora = prompt(`Editar HORA para ${nombre}:`, horaActual.substring(0,5));
         
         if (nuevaFecha && nuevaHora) {
-            const { error } = await client
-                .from('turnos')
-                .update({ 
-                    fecha: nuevaFecha, 
-                    hora: nuevaHora + ":00" 
-                })
-                .eq('id', id);
-                
-            if (error) {
-                alert("Error al actualizar: " + error.message);
-            } else {
-                consultar();
-            }
+            const { error } = await client.from('turnos').update({ 
+                fecha: nuevaFecha, hora: nuevaHora + ":00" 
+            }).eq('id', id);
+            if (error) alert("Error: " + error.message); else consultar();
         }
     }
 
     async function eliminar(id) {
-        if (confirm("¿Borrar este turno permanentemente?")) {
+        if (confirm("¿Borrar este turno?")) {
             const { error } = await client.from('turnos').delete().eq('id', id);
             if (!error) consultar();
         }
@@ -155,8 +149,8 @@
     }
 </script>
 </body>
-
 </html>
+
 
 
 
