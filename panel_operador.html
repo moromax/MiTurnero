@@ -1,0 +1,158 @@
+<<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Gestión - Operador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Ubuntu', sans-serif; background: #2c3e50; padding: 20px; color: #333; }
+        .container { max-width: 1300px; margin: auto; background: white; padding: 30px; border-radius: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        
+        .filtros { display: flex; gap: 25px; background: #f8f9fa; padding: 20px; border-radius: 15px; margin: 20px 0; align-items: center; flex-wrap: wrap; }
+        
+        .filtros div { display: flex; align-items: center; gap: 12px; }
+        .filtros label { font-weight: 700; color: #2c3e50; }
+
+        input, select { padding: 10px 18px; border-radius: 25px; border: 1px solid #ccc; font-family: 'Ubuntu', sans-serif; outline: none; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #34495e; color: white; padding: 15px 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .btn-edit { background: #f39c12; color: white; border: none; padding: 8px 18px; border-radius: 25px; cursor: pointer; transition: 0.2s; }
+        .btn-del { background: #e74c3c; color: white; border: none; padding: 8px 18px; border-radius: 25px; cursor: pointer; transition: 0.2s; }
+        .btn-excel { background: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 30px; cursor: pointer; font-weight: 700; transition: 0.2s; }
+        
+        .btn-edit:hover, .btn-del:hover, .btn-excel:hover { opacity: 0.85; transform: translateY(-1px); }
+        b.hora-texto { color: #2c3e50; }
+        b.fecha-texto { color: #3498db; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>Gestión Administrativa</h2>
+        <button class="btn-excel" onclick="exportarExcel()">📥 Descargar Excel</button>
+    </div>
+    <div class="filtros">
+        <div><label>Fecha</label><input type="date" id="fechaFiltro" onchange="consultar()"></div>
+        <div><label>Hora</label><select id="horaFiltro" onchange="consultar()"><option value="">Todas</option></select></div>
+        <div><label>DNI</label><input type="number" id="buscarDNI" oninput="consultar()" placeholder="Buscar..."></div>
+        <button onclick="consultar()" style="padding: 10px 25px; border-radius: 25px; cursor:pointer; background:#3498db; color:white; border:none; font-weight: 700;">Actualizar</button>
+    </div>
+    <table id="tablaTurnos">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>DNI</th>
+                <th>Nombre</th>
+                <th>Celular</th>
+                <th>Email</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="7" style="text-align:center; padding: 20px;">Use los filtros para buscar turnos</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const client = supabase.createClient('https://htuqdurgktbilrxjpytd.supabase.co', 'sb_publishable_Yk7RwtF_FzfDyrGcfohIUA_Aa6y_NU3');
+
+    const sel = document.getElementById('horaFiltro');
+    for (let h = 8; h <= 12; h++) {
+        for (let m = 0; m < 60; m += 10) {
+            if (h === 12 && m > 30) break;
+            let val = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            sel.innerHTML += `<option value="${val}">${val} hs</option>`;
+        }
+    }
+
+    function formatearFecha(fechaStr) {
+        if(!fechaStr) return "-";
+        const partes = fechaStr.split("-");
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    async function consultar() {
+        const f = document.getElementById('fechaFiltro').value;
+        const h = document.getElementById('horaFiltro').value;
+        const d = document.getElementById('buscarDNI').value;
+
+        let query = client.from('turnos').select('*').order('fecha', { ascending: true }).order('hora', { ascending: true });
+        
+        if (f) query = query.eq('fecha', f);
+        if (h) query = query.eq('hora', h + ":00");
+        if (d) query = query.ilike('dni', `%${d}%`);
+
+        const { data, error } = await query;
+        if (error) return;
+
+        const tbody = document.querySelector('#tablaTurnos tbody');
+        tbody.innerHTML = "";
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">No se encontraron turnos</td></tr>';
+            return;
+        }
+
+        data.forEach(t => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><b class="fecha-texto">${formatearFecha(t.fecha)}</b></td>
+                    <td><b class="hora-texto">${t.hora.substring(0,5)}</b></td>
+                    <td>${t.dni}</td>
+                    <td>${t.nombre_apellido}</td>
+                    <td>${t.celular || '-'}</td>
+                    <td>${t.email || '-'}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editarTurno('${t.id}', '${t.fecha}', '${t.hora}', '${t.nombre_apellido}')">Editar</button>
+                        <button class="btn-del" onclick="eliminar('${t.id}')">Borrar</button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function editarTurno(id, fechaActual, horaActual, nombre) {
+        // 1. Pedir nueva fecha
+        const nuevaFecha = prompt(`Editar FECHA para ${nombre} (AAAA-MM-DD):`, fechaActual);
+        
+        // 2. Pedir nueva hora
+        const nuevaHora = prompt(`Editar HORA para ${nombre} (HH:MM):`, horaActual.substring(0,5));
+        
+        if (nuevaFecha && nuevaHora) {
+            const { error } = await client
+                .from('turnos')
+                .update({ 
+                    fecha: nuevaFecha, 
+                    hora: nuevaHora + ":00" 
+                })
+                .eq('id', id);
+                
+            if (error) {
+                alert("Error al actualizar: " + error.message);
+            } else {
+                consultar();
+            }
+        }
+    }
+
+    async function eliminar(id) {
+        if (confirm("¿Borrar este turno permanentemente?")) {
+            const { error } = await client.from('turnos').delete().eq('id', id);
+            if (!error) consultar();
+        }
+    }
+
+    function exportarExcel() {
+        const wb = XLSX.utils.table_to_book(document.getElementById('tablaTurnos'));
+        XLSX.writeFile(wb, "Reporte_Turnos.xlsx");
+    }
+</script>
+</body>
+</html>

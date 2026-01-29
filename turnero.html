@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Turnos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Ubuntu', sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+        h2 { text-align: center; color: #2c3e50; font-weight: 700; margin-bottom: 25px; }
+        
+        label { display: block; margin-bottom: 10px; margin-left: 5px; font-weight: 500; color: #444; }
+
+        .grid-turnos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 20px; }
+        
+        .turno-btn { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 10px; border: none; border-radius: 20px; cursor: pointer; 
+            background: #2ecc71; color: white; transition: 0.3s; 
+            font-family: 'Ubuntu', sans-serif; 
+        }
+        .turno-btn span.hora { font-size: 16px; font-weight: 700; }
+        .turno-btn span.cupos { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+
+        .turno-btn:hover:not(:disabled) { background: #27ae60; transform: scale(1.05); }
+        
+        /* Estilo para cuando queda solo 1 cupo (Alerta) */
+        .turno-btn.last-cupo { background: #f39c12; }
+        
+        .turno-btn:disabled { background: #bdc3c7; cursor: not-allowed; color: #fdfdfd; }
+        
+        .formulario { display: none; margin-top: 30px; border-top: 2px solid #f0f0f0; padding-top: 25px; animation: fadeIn 0.4s ease; }
+        
+        input { 
+            width: 100%; padding: 12px 20px; margin: 8px 0 18px 0; 
+            border: 1px solid #ddd; border-radius: 30px; 
+            box-sizing: border-box; font-size: 16px; font-family: 'Ubuntu', sans-serif; 
+        }
+        
+        .btn-confirmar { 
+            background: #3498db; color: white; border: none; padding: 16px; 
+            border-radius: 30px; cursor: pointer; width: 100%; 
+            font-size: 18px; font-weight: 700; margin-top: 10px; font-family: 'Ubuntu', sans-serif; 
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Reserva de Turnos</h2>
+    <label>1. Seleccione la Fecha:</label>
+    <input type="date" id="fechaSeleccionada" onchange="cargarTurnos()">
+    <div id="contenedorTurnos" class="grid-turnos"></div>
+    <div id="seccionRegistro" class="formulario">
+        <h3 id="infoTurnoSeleccionado" style="color: #3498db; margin-top: 0; margin-left: 5px;"></h3>
+        <label>DNI:</label>
+        <input type="number" id="dni" placeholder="Ingrese su documento">
+        <label>Nombre y Apellido:</label>
+        <input type="text" id="nombre" placeholder="Ej: Juan Pérez">
+        <label>Celular:</label>
+        <input type="text" id="celular" placeholder="Ej: 1122334455">
+        <label>Email:</label>
+        <input type="email" id="email" placeholder="correo@ejemplo.com">
+        <button id="btnFinal" class="btn-confirmar" onclick="confirmarTurno()">Confirmar Turno</button>
+    </div>
+</div>
+<script>
+    const client = supabase.createClient('https://htuqdurgktbilrxjpytd.supabase.co', 'sb_publishable_Yk7RwtF_FzfDyrGcfohIUA_Aa6y_NU3');
+    let fechaActual = "", horaActual = "";
+    const horarios = [];
+    for (let h = 8; h <= 12; h++) { for (let m = 0; m < 60; m += 10) { if (h === 12 && m > 30) break; horarios.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`); } }
+
+    async function cargarTurnos() {
+        fechaActual = document.getElementById('fechaSeleccionada').value;
+        if (!fechaActual) return;
+        
+        const { data: ocupados } = await client.from('turnos').select('hora').eq('fecha', fechaActual);
+        const conteo = {}; ocupados?.forEach(t => { const h = t.hora.substring(0, 5); conteo[h] = (conteo[h] || 0) + 1; });
+        
+        const contenedor = document.getElementById('contenedorTurnos');
+        contenedor.innerHTML = "";
+
+        horarios.forEach(hora => {
+            const btn = document.createElement('button');
+            const usados = conteo[hora] || 0;
+            const disponibles = 6 - usados;
+            
+            btn.className = 'turno-btn';
+            if (disponibles === 1) btn.classList.add('last-cupo'); // Naranja si queda uno
+
+            btn.innerHTML = `<span class="hora">${hora} hs</span>`;
+            
+            if (disponibles <= 0) {
+                btn.disabled = true;
+                btn.innerHTML += `<span class="cupos">Agotado</span>`;
+            } else {
+                btn.innerHTML += `<span class="cupos">${disponibles} libres</span>`;
+                btn.onclick = () => { 
+                    horaActual = hora; 
+                    document.getElementById('seccionRegistro').style.display = 'block'; 
+                    document.getElementById('infoTurnoSeleccionado').innerText = `Seleccionado: ${hora} hs`;
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                };
+            }
+            contenedor.appendChild(btn);
+        });
+    }
+
+    async function confirmarTurno() {
+        const btn = document.getElementById('btnFinal');
+        const dni = document.getElementById('dni').value;
+        const nombre = document.getElementById('nombre').value;
+        
+        if (!dni || !nombre) return alert("DNI y Nombre son obligatorios");
+
+        // Bloqueo de botón para evitar doble clic
+        btn.disabled = true;
+        btn.innerText = "Procesando...";
+
+        const { data: existente } = await client.from('turnos').select('hora').eq('dni', dni).eq('fecha', fechaActual).maybeSingle();
+        
+        if (existente) {
+            alert(`Usted ya tiene un turno este día a las ${existente.hora.substring(0,5)}.`);
+            btn.disabled = false;
+            btn.innerText = "Confirmar Turno";
+            return;
+        }
+
+        const { error } = await client.from('turnos').insert([{ 
+            dni, nombre_apellido: nombre, celular: document.getElementById('celular').value, 
+            email: document.getElementById('email').value, fecha: fechaActual, hora: horaActual 
+        }]);
+
+        if (error) {
+            alert("Error al guardar");
+            btn.disabled = false;
+            btn.innerText = "Confirmar Turno";
+        } else {
+            alert("¡Turno reservado con éxito!");
+            location.reload();
+        }
+    }
+</script>
+</body>
+</html>
